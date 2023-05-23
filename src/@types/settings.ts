@@ -120,6 +120,11 @@ export interface Limits {
   message?: MessageLimits
 }
 
+export interface Authentication {
+  enabled: boolean
+}
+
+
 export interface Worker {
   count: number
 }
@@ -198,6 +203,7 @@ export interface Mirroring {
 }
 
 export interface Settings {
+  authentication: Authentication
   info: Info
   payments?: Payments
   paymentsProcessors?: PaymentsProcessors

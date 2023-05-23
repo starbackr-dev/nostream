@@ -1,25 +1,27 @@
 import cluster from 'cluster'
-import { EventEmitter } from 'stream'
+import { randomBytes } from 'crypto'
 import { IncomingMessage as IncomingHttpMessage } from 'http'
+import { SocketAddress } from 'net'
+import { EventEmitter } from 'stream'
 import { WebSocket } from 'ws'
 
-import { ContextMetadata, Factory } from '../@types/base'
-import { createNoticeMessage, createOutgoingEventMessage } from '../utils/messages'
-import { IAbortable, IMessageHandler } from '../@types/message-handlers'
-import { IncomingMessage, OutgoingMessage } from '../@types/messages'
 import { IWebSocketAdapter, IWebSocketServerAdapter } from '../@types/adapters'
+import { ContextMetadata, Factory } from '../@types/base'
+import { Event } from '../@types/event'
+import { IAbortable, IMessageHandler } from '../@types/message-handlers'
+import { IncomingMessage, MessageType, OutgoingMessage } from '../@types/messages'
+import { Settings } from '../@types/settings'
 import { SubscriptionFilter, SubscriptionId } from '../@types/subscription'
+import { IRateLimiter } from '../@types/utils'
 import { WebSocketAdapterEvent, WebSocketServerAdapterEvent } from '../constants/adapter'
-import { attemptValidation } from '../utils/validation'
 import { ContextMetadataKey } from '../constants/base'
 import { createLogger } from '../factories/logger-factory'
-import { Event } from '../@types/event'
-import { getRemoteAddress } from '../utils/http'
-import { IRateLimiter } from '../@types/utils'
-import { isEventMatchingFilter } from '../utils/event'
 import { messageSchema } from '../schemas/message-schema'
-import { Settings } from '../@types/settings'
-import { SocketAddress } from 'net'
+import { isEventMatchingFilter } from '../utils/event'
+import { getRemoteAddress } from '../utils/http'
+import { createAuthMessage, createCommandResult, createNoticeMessage, createOutgoingEventMessage } from '../utils/messages'
+import { attemptValidation } from '../utils/validation'
+
 
 
 const debug = createLogger('web-socket-adapter')
@@ -32,6 +34,9 @@ export class WebSocketAdapter extends EventEmitter implements IWebSocketAdapter 
   private clientAddress: SocketAddress
   private alive: boolean
   private subscriptions: Map<SubscriptionId, SubscriptionFilter[]>
+  private authChallenge: { createdAt: Date, challenge: string } | undefined
+  private authenticated: boolean
+
 
   public constructor(
     private readonly client: WebSocket,
@@ -95,6 +100,25 @@ export class WebSocketAdapter extends EventEmitter implements IWebSocketAdapter 
     this.subscriptions.delete(subscriptionId)
   }
 
+  public setNewAuthChallenge(): string {
+    const challenge = randomBytes(16).toString('hex')
+    this.authChallenge = {
+      createdAt: new Date(),
+      challenge,
+    }
+
+    return challenge
+  }
+
+  public setClientToAuthenticated() {
+    this.authenticated = true
+    this.authChallenge = undefined
+  }
+
+  public getClientAuthChallengeData() {
+    return this.authChallenge
+  }
+
   public onSubscribed(subscriptionId: string, filters: SubscriptionFilter[]): void {
     debug('client %s subscribed %s to %o', this.clientId, subscriptionId, filters)
     this.subscriptions.set(subscriptionId, filters)
@@ -155,6 +179,11 @@ export class WebSocketAdapter extends EventEmitter implements IWebSocketAdapter 
       }
 
       const message = attemptValidation(messageSchema)(JSON.parse(raw.toString('utf8')))
+
+      debug('recv client msg: %o', message)
+
+       const requiresAuthentication = this.isAuthenticationRequired(message)
+       if (requiresAuthentication) return
 
       message[ContextMetadataKey] = {
         remoteAddress: this.clientAddress,
@@ -267,5 +296,38 @@ export class WebSocketAdapter extends EventEmitter implements IWebSocketAdapter 
 
     this.removeAllListeners()
     this.client.removeAllListeners()
+  }
+
+  private isAuthenticationRequired(message): boolean {
+    if (
+      !this.authenticated
+      && message[0] !== MessageType.AUTH
+      && message[0] !== MessageType.CLOSE
+      && this.settings().authentication.enabled
+    ) {
+      switch(message[0]) {
+        case MessageType.REQ: {
+          const challenge = this.setNewAuthChallenge()
+          this.sendMessage(createAuthMessage(challenge))
+          return true
+        }
+
+        case MessageType.EVENT: {
+          const challenge = this.setNewAuthChallenge()
+          this.sendMessage(createCommandResult(message[1].id, false, 'rejected: unauthorized'))
+          this.sendMessage(createAuthMessage(challenge))
+          return true
+        }
+
+        default: {
+          const challenge = this.setNewAuthChallenge()
+          this.sendMessage(createCommandResult(message[1].id, false, 'rejected: unauthorized'))
+          this.sendMessage(createAuthMessage(challenge))
+          return true
+        }
+      }
+    }
+
+    return false
   }
 }
