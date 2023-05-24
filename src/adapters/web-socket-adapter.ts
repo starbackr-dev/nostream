@@ -84,6 +84,11 @@ export class WebSocketAdapter extends EventEmitter implements IWebSocketAdapter 
       .on(WebSocketAdapterEvent.Broadcast, this.onBroadcast.bind(this))
       .on(WebSocketAdapterEvent.Message, this.sendMessage.bind(this))
 
+    console.log('inside getting connected')
+    
+    const requiresAuthentication = this.isAuthenticationRequired('')
+    if (requiresAuthentication) return
+
     debug('client %s connected from %s', this.clientId, this.clientAddress.address)
   }
 
@@ -147,6 +152,8 @@ export class WebSocketAdapter extends EventEmitter implements IWebSocketAdapter 
 
   private sendMessage(message: OutgoingMessage): void {
     if (this.client.readyState !== WebSocket.OPEN) {
+      console.log('not open');
+      
       return
     }
     this.client.send(JSON.stringify(message))
@@ -321,8 +328,10 @@ export class WebSocketAdapter extends EventEmitter implements IWebSocketAdapter 
 
         default: {
           const challenge = this.setNewAuthChallenge()
-          this.sendMessage(createCommandResult(message[1].id, false, 'rejected: unauthorized'))
+          //this.sendMessage(createCommandResult(message[1].id, false, 'rejected: unauthorized'))
           this.sendMessage(createAuthMessage(challenge))
+          console.log('challenge ', challenge)
+          
           return true
         }
       }
@@ -331,3 +340,8 @@ export class WebSocketAdapter extends EventEmitter implements IWebSocketAdapter 
     return false
   }
 }
+
+  
+  
+
+

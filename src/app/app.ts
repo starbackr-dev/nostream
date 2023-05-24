@@ -1,14 +1,15 @@
+import { Serializable } from 'child_process'
 import { Cluster, Worker } from 'cluster'
+import { randomBytes } from 'crypto'
+import { FSWatcher } from 'fs'
 import { cpus, hostname } from 'os'
 import { path, pathEq } from 'ramda'
-import { FSWatcher } from 'fs'
 
-import { addOnion } from '../tor/client'
-import { createLogger } from '../factories/logger-factory'
-import { IRunnable } from '../@types/base'
 import packageJson from '../../package.json'
-import { Serializable } from 'child_process'
+import { IRunnable } from '../@types/base'
 import { Settings } from '../@types/settings'
+import { createLogger } from '../factories/logger-factory'
+import { addOnion } from '../tor/client'
 import { SettingsStatic } from '../utils/settings'
 
 const debug = createLogger('app-primary')
@@ -66,8 +67,10 @@ export class App implements IRunnable {
     }
 
     if (paymentsEnabled && (typeof this.process.env.SECRET !== 'string' || this.process.env.SECRET === '' || this.process.env.SECRET === 'changeme')) {
-      console.error('Please configure the secret using the SECRET environment variable.')
-      this.process.exit(1)
+      //console.error('Please configure the secret using the SECRET environment variable.')
+      //this.process.exit(1)
+      this.process.env.SECRET = randomBytes(16).toString('hex')
+      console.log('SECRET IS: ', this.process.env.SECRET )
     }
 
     const workerCount = process.env.WORKER_COUNT

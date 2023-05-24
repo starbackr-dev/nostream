@@ -1,10 +1,12 @@
 import { createCommandResult } from '../../utils/messages'
+
  import { createLogger } from '../../factories/logger-factory'
  import { Event } from '../../@types/event'
  import { IEventStrategy } from '../../@types/message-handlers'
  import { isValidSignedAuthEvent } from '../../utils/event'
  import { IWebSocketAdapter } from '../../@types/adapters'
  import { WebSocketAdapterEvent } from '../../constants/adapter'
+ import { IUserRepository } from '../../@types/repositories'
 
  const permittedChallengeResponseTimeDelayMs = (1000 * 60 * 10) // 10 min
  const debug = createLogger('default-event-strategy')
@@ -12,6 +14,7 @@ import { createCommandResult } from '../../utils/messages'
  export class SignedAuthEventStrategy implements IEventStrategy<Event, Promise<void>> {
    public constructor(
      private readonly webSocket: IWebSocketAdapter,
+     private readonly userRepository: IUserRepository,
    ) { }
 
    public async execute(event: Event): Promise<void> {
@@ -21,8 +24,10 @@ import { createCommandResult } from '../../utils/messages'
 
      const timeIsWithinBounds = (createdAt.getTime() + permittedChallengeResponseTimeDelayMs) > Date.now()
 
-     debug('banana', timeIsWithinBounds, verified)
-     if (verified && timeIsWithinBounds) {
+     const user = await this.userRepository.findByPubkey(event.pubkey)
+
+     debug('AUTH ', timeIsWithinBounds, verified, user?user:'no user found...')
+     if (verified && timeIsWithinBounds && user && user.isAdmitted) {
         console.log('setClientToAuthenticated')
         
        this.webSocket.setClientToAuthenticated()

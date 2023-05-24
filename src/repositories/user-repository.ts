@@ -1,10 +1,10 @@
 import { always, applySpec, omit, pipe, prop } from 'ramda'
 
 import { DatabaseClient, Pubkey } from '../@types/base'
-import { DBUser, User } from '../@types/user'
-import { fromDBUser, toBuffer } from '../utils/transform'
-import { createLogger } from '../factories/logger-factory'
 import { IUserRepository } from '../@types/repositories'
+import { DBUser, User } from '../@types/user'
+import { createLogger } from '../factories/logger-factory'
+import { fromDBUser, toBuffer } from '../utils/transform'
 
 const debug = createLogger('user-repository')
 
@@ -17,10 +17,11 @@ export class UserRepository implements IUserRepository {
   ): Promise<User | undefined> {
     debug('find by pubkey: %s', pubkey)
     const [dbuser] = await client<DBUser>('users')
-      .where('pubkey', toBuffer(pubkey))
+      .where('pubkey', pubkey)
       .select()
 
     if (!dbuser) {
+      debug('no DB user found...', pubkey)
       return
     }
 
@@ -36,7 +37,7 @@ export class UserRepository implements IUserRepository {
     const date = new Date()
 
     const row = applySpec<DBUser>({
-      pubkey: pipe(prop('pubkey'), toBuffer),
+      pubkey: pipe(prop('pubkey')),
       is_admitted: prop('isAdmitted'),
       tos_accepted_at: prop('tosAcceptedAt'),
       updated_at: always(date),
