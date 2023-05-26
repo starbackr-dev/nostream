@@ -36,6 +36,7 @@ export class WebSocketAdapter extends EventEmitter implements IWebSocketAdapter 
   private subscriptions: Map<SubscriptionId, SubscriptionFilter[]>
   private authChallenge: { createdAt: Date, challenge: string } | undefined
   private authenticated: boolean
+  private authPubkey: string
 
 
   public constructor(
@@ -84,8 +85,8 @@ export class WebSocketAdapter extends EventEmitter implements IWebSocketAdapter 
       .on(WebSocketAdapterEvent.Broadcast, this.onBroadcast.bind(this))
       .on(WebSocketAdapterEvent.Message, this.sendMessage.bind(this))
 
-    console.log('inside getting connected')
-    
+
+    //Check if Authed
     const requiresAuthentication = this.isAuthenticationRequired('')
     if (requiresAuthentication) return
 
@@ -98,6 +99,10 @@ export class WebSocketAdapter extends EventEmitter implements IWebSocketAdapter 
 
   public getClientAddress(): string {
     return this.clientAddress.address
+  }
+
+  public getAuthPubkey(): string {
+    return this.authPubkey
   }
 
   public onUnsubscribed(subscriptionId: string): void {
@@ -115,7 +120,9 @@ export class WebSocketAdapter extends EventEmitter implements IWebSocketAdapter 
     return challenge
   }
 
-  public setClientToAuthenticated() {
+  public setClientToAuthenticated(pubkey: string) {
+    debug('client %s authed pubkey %s', this.clientId, pubkey)
+    this.authPubkey = pubkey
     this.authenticated = true
     this.authChallenge = undefined
   }

@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:stream'
+
 import { SubscriptionFilter } from './subscription'
 
 export interface IWebSocketServerAdapter extends EventEmitter, IWebServerAdapter {
@@ -17,7 +18,8 @@ export type IWebSocketAdapter = EventEmitter & {
   getClientAddress(): string
   getSubscriptions(): Map<string, SubscriptionFilter[]>
   getClientAuthChallengeData(): { challenge: string, createdAt: Date } | undefined
-  setClientToAuthenticated(): void
+  setClientToAuthenticated(pubkey: string): void
+  getAuthPubkey(): string
 }
 
 export interface ICacheAdapter {

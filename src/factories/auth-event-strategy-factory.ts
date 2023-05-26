@@ -1,13 +1,12 @@
 import { Event } from '../@types/event'
-
  import { Factory } from '../@types/base'
  import { IEventStrategy } from '../@types/message-handlers'
- import { IWebSocketAdapter } from '../@types/adapters'
+ import { ICacheAdapter, IWebSocketAdapter } from '../@types/adapters'
  import { SignedAuthEventStrategy } from '../handlers/event-strategies/auth-event-strategy'
  import { UserRepository } from '../repositories/user-repository'
  import { getMasterDbClient, getReadReplicaDbClient } from '../database/client'
-
-
+import { RedisAdapter } from '../adapters/redis-adapter'
+import { getCacheClient } from '../cache/client'
 
     
 
@@ -16,6 +15,7 @@ import { Event } from '../@types/event'
    ([, adapter]: [Event, IWebSocketAdapter]) => {
 
     const dbClient = getMasterDbClient()
-    const userRepository = new UserRepository(dbClient)   
-     return new SignedAuthEventStrategy(adapter, userRepository)
+    const userRepository = new UserRepository(dbClient)  
+    const cache = new RedisAdapter(getCacheClient())   
+     return new SignedAuthEventStrategy(adapter, userRepository, cache)
    }

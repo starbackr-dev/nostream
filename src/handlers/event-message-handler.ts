@@ -1,17 +1,17 @@
-import { Event, ExpiringEvent  } from '../@types/event'
-import { EventRateLimit, FeeSchedule, Settings } from '../@types/settings'
-import { getEventExpiration, getEventProofOfWork, getPubkeyProofOfWork, getPublicKey, getRelayPrivateKey, isEventIdValid, isEventKindOrRangeMatch, isEventSignatureValid, isExpiredEvent } from '../utils/event'
-import { IEventStrategy, IMessageHandler } from '../@types/message-handlers'
-import { ContextMetadataKey } from '../constants/base'
-import { createCommandResult } from '../utils/messages'
-import { createLogger } from '../factories/logger-factory'
-import { EventExpirationTimeMetadataKey } from '../constants/base'
-import { Factory } from '../@types/base'
-import { IncomingEventMessage } from '../@types/messages'
-import { IRateLimiter } from '../@types/utils'
-import { IUserRepository } from '../@types/repositories'
 import { IWebSocketAdapter } from '../@types/adapters'
+import { Factory } from '../@types/base'
+import { Event, ExpiringEvent  } from '../@types/event'
+import { IEventStrategy, IMessageHandler } from '../@types/message-handlers'
+import { IncomingEventMessage } from '../@types/messages'
+import { IUserRepository } from '../@types/repositories'
+import { EventRateLimit, FeeSchedule, Settings } from '../@types/settings'
+import { IRateLimiter } from '../@types/utils'
 import { WebSocketAdapterEvent } from '../constants/adapter'
+import { ContextMetadataKey } from '../constants/base'
+import { EventExpirationTimeMetadataKey } from '../constants/base'
+import { createLogger } from '../factories/logger-factory'
+import { getEventExpiration, getEventProofOfWork, getPubkeyProofOfWork, getPublicKey, getRelayPrivateKey, isEventIdValid, isEventKindOrRangeMatch, isEventSignatureValid, isExpiredEvent } from '../utils/event'
+import { createCommandResult } from '../utils/messages'
 
 const debug = createLogger('event-message-handler')
 
@@ -57,12 +57,14 @@ export class EventMessageHandler implements IMessageHandler {
       return
     }
 
+    /*  commented since AUTH confirming the user
     reason = await this.isUserAdmitted(event)
     if (reason) {
       debug('event %s rejected: %s', event.id, reason)
       this.webSocket.emit(WebSocketAdapterEvent.Message, createCommandResult(event.id, false, reason))
       return
     }
+    */
 
     const strategy = this.strategyFactory([event, this.webSocket])
 

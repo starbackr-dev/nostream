@@ -2,18 +2,18 @@ import { anyPass, equals, isNil, map, propSatisfies, uniqWith } from 'ramda'
 // import { addAbortSignal } from 'stream'
 import { pipeline } from 'stream/promises'
 
-import { createEndOfStoredEventsNoticeMessage, createNoticeMessage, createOutgoingEventMessage } from '../utils/messages'
-import { IAbortable, IMessageHandler } from '../@types/message-handlers'
-import { isEventMatchingFilter, toNostrEvent } from '../utils/event'
-import { streamEach, streamEnd, streamFilter, streamMap } from '../utils/stream'
-import { SubscriptionFilter, SubscriptionId } from '../@types/subscription'
-import { createLogger } from '../factories/logger-factory'
-import { Event } from '../@types/event'
-import { IEventRepository } from '../@types/repositories'
 import { IWebSocketAdapter } from '../@types/adapters'
-import { Settings } from '../@types/settings'
+import { Event } from '../@types/event'
+import { IAbortable, IMessageHandler } from '../@types/message-handlers'
 import { SubscribeMessage } from '../@types/messages'
+import { IEventRepository } from '../@types/repositories'
+import { Settings } from '../@types/settings'
+import { SubscriptionFilter, SubscriptionId } from '../@types/subscription'
 import { WebSocketAdapterEvent } from '../constants/adapter'
+import { createLogger } from '../factories/logger-factory'
+import { isEventMatchingFilter, toNostrEvent } from '../utils/event'
+import { createEndOfStoredEventsNoticeMessage, createNoticeMessage, createOutgoingEventMessage } from '../utils/messages'
+import { streamEach, streamEnd, streamFilter, streamMap } from '../utils/stream'
 
 const debug = createLogger('subscribe-message-handler')
 
@@ -41,7 +41,7 @@ export class SubscribeMessageHandler implements IMessageHandler, IAbortable {
       debug('subscription %s with %o rejected: %s', subscriptionId, filters, reason)
       this.webSocket.emit(WebSocketAdapterEvent.Message, createNoticeMessage(`Subscription rejected: ${reason}`))
       return
-    }
+    } 
 
     this.webSocket.emit(WebSocketAdapterEvent.Subscribe, subscriptionId, filters)
 
@@ -112,6 +112,39 @@ export class SubscribeMessageHandler implements IMessageHandler, IAbortable {
       && subscriptionId.length > subscriptionLimits.maxSubscriptionIdLength
     ) {
       return `Subscription ID too long: Subscription ID must be less or equal to ${subscriptionLimits.maxSubscriptionIdLength}`
+    }
+
+    
+    //Check if kind 4 subscription and it requires #p or authors filter of authed pubkey
+
+    const authPubkey =  this.webSocket.getAuthPubkey()
+    for (const currentFilter of filters) {   
+      if (currentFilter.kinds[0] !== 4 || currentFilter.kinds.length > 1) {
+        const reason = 'Only kind 4 subscription is allowed. ';
+        debug('subscription %s with %o rejected: %s', subscriptionId, filters, reason);
+        return reason;
+      }
+      let ptag = Object.keys(currentFilter).some((key) => key === '#p');
+      if (ptag) {
+        const { '#p': value } = currentFilter;
+        if (value[0] !== authPubkey) {
+          const reason = 'kind 4 subscription requies #p tag of authed pubkey. ';
+          debug('subscription %s with %o rejected: %s', subscriptionId, filters, reason);
+          return reason; 
+
+        }
+      }
+      if (currentFilter.authors && currentFilter.authors[0] !== authPubkey) {
+        const reason = 'kind 4 subscription requies authors of authed pubkey. ';
+        debug('subscription %s with %o rejected: %s', subscriptionId, filters, reason);
+        return reason; 
+
+      }
+      if (!currentFilter.authors && !ptag) {
+        const reason = 'kind 4 subscription requires #p or authors filter of authed pubkey';
+        debug('subscription %s with %o rejected: %s', subscriptionId, filters, reason);
+        return reason;
+      }
     }
 
 
