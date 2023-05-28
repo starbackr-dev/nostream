@@ -36,6 +36,10 @@ export class SubscribeMessageHandler implements IMessageHandler, IAbortable {
     const subscriptionId = message[1]
     const filters = uniqWith(equals, message.slice(2)) as SubscriptionFilter[]
 
+    for (const currentFilter of filters) {   
+        currentFilter.expiresAt = Math.floor(Date.now() / 1000)
+    }
+
     const reason = this.canSubscribe(subscriptionId, filters)
     if (reason) {
       debug('subscription %s with %o rejected: %s', subscriptionId, filters, reason)

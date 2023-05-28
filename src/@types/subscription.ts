@@ -1,5 +1,5 @@
-import { EventId, Pubkey } from './base'
 import { EventKinds } from '../constants/base'
+import { EventId, Pubkey } from './base'
 
 export type SubscriptionId = string
 
@@ -10,5 +10,6 @@ export interface SubscriptionFilter {
   until?: number
   authors?: Pubkey[]
   limit?: number
+  expiresAt: number
   [key: `#${string}`]: string[]
 }

@@ -29,14 +29,14 @@ import {
   toPairs,
 } from 'ramda'
 
-import { ContextMetadataKey, EventDeduplicationMetadataKey, EventDelegatorMetadataKey, EventExpirationTimeMetadataKey } from '../constants/base'
 import { DatabaseClient, EventId } from '../@types/base'
 import { DBEvent, Event } from '../@types/event'
 import { IEventRepository, IQueryResult } from '../@types/repositories'
-import { toBuffer, toJSON } from '../utils/transform'
+import { SubscriptionFilter } from '../@types/subscription'
+import { ContextMetadataKey, EventDeduplicationMetadataKey, EventDelegatorMetadataKey, EventExpirationTimeMetadataKey } from '../constants/base'
 import { createLogger } from '../factories/logger-factory'
 import { isGenericTagQuery } from '../utils/filter'
-import { SubscriptionFilter } from '../@types/subscription'
+import { toBuffer, toJSON } from '../utils/transform'
 
 const even = pipe(modulo(__, 2), equals(0))
 
@@ -126,6 +126,10 @@ export class EventRepository implements IEventRepository {
         builder.limit(currentFilter.limit).orderBy('event_created_at', 'DESC')
       } else {
         builder.limit(500).orderBy('event_created_at', 'asc')
+      }
+
+      if (typeof currentFilter.expiresAt === 'number') {
+        builder.where('expires_at', '>', currentFilter.expiresAt)
       }
 
       const andWhereRaw = invoker(1, 'andWhereRaw')
